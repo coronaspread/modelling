@@ -1,10 +1,13 @@
+# -*- coding: utf-8 -*-
+# derived from https://towardsdatascience.com/covid-19-infection-in-italy-mathematical-models-and-predictions-7784b4d7dd8d
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from sklearn.metrics import mean_squared_error
 from scipy.optimize import curve_fit
 from scipy.optimize import fsolve
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 # %matplotlib inline
 
 TIME_0 = "2020-01-01T00:00:00"
@@ -45,3 +48,34 @@ print("Expected infection peak: {0}".format(peak_date))
 sol = int(fsolve(lambda x : logistic_model(x,a,b,c) - int(c),b))
 end_date = date_0 + timedelta(days=int(sol))
 print("Expected infection end: {0}".format(end_date))
+
+# exponential model
+def exponential_model(x,a,b,c):
+    return a*np.exp(b*(x-c))
+
+# fit exponential curve
+exp_fit = curve_fit(exponential_model,x,y,p0=[1,1,1])
+
+# plot
+pred_x = list(range(max(x),sol))
+plt.rcParams['figure.figsize'] = [7, 7]
+
+plt.rc('font', size=14)
+
+# Real data
+plt.scatter(x,y,label="Real data",color="red")
+
+# Predicted logistic curve
+plt.plot(x+pred_x, [logistic_model(i,fit[0][0],fit[0][1],fit[0][2])
+    for i in x+pred_x], label="Logistic model" )
+
+# Predicted exponential curve
+plt.plot(x+pred_x, [exponential_model(i,exp_fit[0][0],exp_fit[0][1],exp_fit[0][2])
+    for i in x+pred_x], label="Exponential model" )
+
+plt.legend()
+plt.xlabel("Days since 1 January 2020")
+plt.ylabel("Total number of infected people")
+plt.ylim((min(y)*0.9,c*1.1))
+
+plt.show()
