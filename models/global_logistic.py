@@ -23,6 +23,7 @@ country = input("Choose country: ")
 
 # prepare data
 df = df.loc[:,['date',country]]
+df = df.fillna(0)
 date = df['date']
 df['date'] = date.map(lambda x : (datetime.strptime(x, FMT) - date_0).days  )
 
