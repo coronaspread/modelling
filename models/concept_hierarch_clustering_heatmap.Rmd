@@ -1,0 +1,96 @@
+---
+title: "Concept Hierarchical Clustering & Heat map"
+date: "29 3 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Introduction 
+The following is a preliminar look into virus spread patterns accross different countries compared with certain macro factors.
+
+The aim is to find clusters of countries by calculating the Euclidean distance in a 3 dimensional space consisting of: growth rate measured as days-to-double and beds per 1000 habitant, as explained below population density. Finally, this analysis can be visualized in a matrix or heat map. 
+
+Use case Example: 
+When we have an accurate prediction Model for Italy, and we identify similarities in the spread patterns between Italy and Switzerland, we might assume similar predictions for Switzerland as well. 
+
+## Explanation variables 
+This distance matrix includes at the moment only three variables.
+
+The current variables are: 
+- Population Density in km2
+- How long did it take for the number of total confirmed deaths to double
+- Amount of beds per 1000 inhabitants per country
+
+More variables such as the exponential growth rate, demographics such as av or median age (%over 65, %between 55-64 etc.), strength of symptoms, climate, rate recovered / dead etc could provide  more accurate clustering
+
+As soon as the data is harmonized and ready to use, following variables can be included:
+- Exponential growth rate 
+- Age (%over 65, %between 55-64 etc.)
+- Considering the outbreak goes exponential, the experts say that the keypoint is 0.04%, meaning when 0.04% of the population is infected with the virus.So we can look at how many days the government took to apply restriction movement policies starting reaching the threshold of 0.04%. 
+- Strength of symptoms
+- Climate 
+- etc. 
+
+# Hierarchical Clustering & Heat map 
+# Loading libraries
+
+```{r }
+
+  # R Markdown
+library("knitr")
+
+  # Tidyverse
+library("dplyr")
+library("ggplot2")
+library("gridExtra")
+library("tidyr")
+
+```
+
+```{r}
+
+opts_knit$set(root.dir = "C:/Users/carmi/Downloads/")
+df <- read.table("C:/Users/carmi/Downloads/clustering.csv", sep=";", header=TRUE)
+head(df)
+
+```
+
+
+
+```{r}
+
+rownames(df) <- df$Country
+xx <- dist(df, diag=TRUE) #
+heatmap(as.matrix(xx), scale="column")
+
+```
+
+**Interpretation:** The redder the color, the more similarities are between the countries. 
+Examples: We can observe in the heat map that Switzerland and Italy behave quite similar. 
+On the other hand we can see that Sweden and India behave completely different. Let's make a Dendrogram to make further investigations. 
+
+# Dendrogram 
+
+```{r}
+
+library("bio3d")
+
+yy <- dist(normalize.vector(xx), diag=TRUE, upper=TRUE)
+yy
+
+```
+
+```{r}
+
+plot(hclust(yy,method="average"))
+
+```
+
+**Interpretation:** The horizontal axis represents the clusters. The vertical scale on the dendrogram represent the distance or dissimilarity. Each joining (fusion) of two clusters is represented on the diagram by the splitting of a vertical line into two vertical lines. The vertical position of the split, shown by a short bar gives the distance (dissimilarity) between the two clusters.
+So we can confirm the observations above, Switzerland and Italy indeed behave very similar. And Sweden and India completely different. 
+
+
