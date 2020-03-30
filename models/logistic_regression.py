@@ -17,26 +17,32 @@ class Predictor:
 
     def fit_data(self, value_type = 'positive_total'): 
         
-        group_infected = data_region.groupby('value_type').get_group(value_type)
-        dates = pd.to_datetime(group_infected['time_report'])
+        group_infected = self.data.groupby('value_type').get_group(value_type)
+        
+        dates = group_infected['time_report'].unique()
+        datetime_dates = pd.to_datetime(dates)
 
-        self.fit_range = int( (max(dates) - min(dates)).days )
-        self.start_time = min(dates)
-        self.end_time = max(dates)
+        self.start_time = min(datetime_dates)
+        self.end_time = max(datetime_dates)
         self.value_type = value_type
 
-        times = []
-        case_numbers = []
+        times = np.array([])
+        case_numbers = np.array([])
 
         for date in dates: 
-            delta = (date - start_time).days
-            times.append(int(times))
+            values_date = group_infected.loc[group_infected['time_report']== date]['value']
+            values_date = self.clean_value_series(values_date)
+            case_numbers = np.append(case_numbers, values_date.sum()) 
+            
+            delta = (pd.to_datetime(date) - self.start_time).days
+            times = np.append(times, int(delta))
 
-        case_numbers = group_infected['value'].iloc[:]
-        
-        init_values = self.model.get_initial_values(times, case_numbers)
+        self.fit_range = int( (max(datetime_dates) - min(datetime_dates)).days )
+
+        init_values = self.model.get_init_values(times, case_numbers)
         self.predictor = self.fit_data_to_model(times, case_numbers, self.model.function, init_values)
-    
+        print(self.predictor)
+
     def extrapolate(self, timespan, filepath = None): 
         if self.predictor is None:
             raise Exception('no fitted model available!')
@@ -59,7 +65,8 @@ class Predictor:
         fit = curve_fit(self.model.function, times, values, p0=init_values)
         fit_parameters = fit[0]
 
-        errors = [np.sqrt(fit[1][i][i]) for i in [0,1,2]]
+        errors = [np.sqrt(fit[1][i][i]) for i in [0,1]]
+        print('fitting errors: ', errors)
         fun_handle = lambda t: self.model.function(t, *fit_parameters)
 
         return fun_handle, errors
@@ -84,17 +91,26 @@ class Predictor:
         
         return data_extrapolated
 
+    def clean_value_series(self, values): 
+        for ind, val in enumerate(values): 
+            try: 
+                val = int(val)
+            except: 
+                val = 0
+            values.iloc[ind] = val
+        return values
 
 class LogisticRegression: 
 
     def __init__(self):
         pass 
 
-    def function(x, b, a):
+    def function(self, x, b, a):
+
         return 1./(1. + a * np.exp(-(b*x)))
 
-    def get_init_values(x,y): 
-        
+    def get_init_values(self, x, y): 
+
         y_tr = np.log(1./y - 1)
         res = linregress(x,y)
 
@@ -104,8 +120,8 @@ class LogisticRegression:
 
 if __name__=='main': 
     
-    filepath = '\filepath\goes\here'
-    filename = 'filename'
+    filepath = 'file\path\goes\here'
+    filename = 'uk_harmonized.csv'
     data = pd.read_csv(filepath)
     model = LogisticRegression()
     prediction_span = 10       # number of days to look into the future
@@ -120,7 +136,7 @@ if __name__=='main':
             data = pd.concat([data, data_region_extrap])
     
     data.to_csv(os.path.join(filepath,str(prediction_span)+ 'day_extra'+ filename))
-    
+
             
 
 
