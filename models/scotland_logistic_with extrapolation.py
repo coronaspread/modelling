@@ -87,7 +87,7 @@ plt.show()
 
 # extrapolation
 infected_extrapolation = {}
-for i in range(max(x), max(x) + 20):
-    infected[i] = logistic_model(i, a, b, c)
+for i in range(max(x) + 1, max(x) + 22):
+    infected_extrapolation[i] = logistic_model(i, a, b, c)
 
 print(infected_extrapolation)
