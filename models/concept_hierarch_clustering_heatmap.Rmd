@@ -94,3 +94,7 @@ plot(hclust(yy,method="average"))
 So we can confirm the observations above, Switzerland and Italy indeed behave very similar. And Sweden and India completely different. 
 
 
+# Sources 
+1. https://ourworldindata.org/coronavirus 2. https://www.indexmundi.com/g/r.aspx?v=2227&l=es
+
+
