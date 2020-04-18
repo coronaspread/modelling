@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-
+from pathlib import Path
 
 class SEIR_model:
 
@@ -28,7 +28,7 @@ class SEIR_model:
 
         n_meas = len(t) #number of measurements
         dt = t[1:]-t[0:n_meas-1] #delta t of the time-series
-
+        print(dt)
         #beta
         beta = (S[0:n_meas-1]-S[1:]) / S[1:]*I[1:]*dt
         print(beta)
@@ -41,6 +41,9 @@ class SEIR_model:
 
         self.result = np.stack([beta, alpha, gamma]).T
 
+    def filter_data(self):
+        pass
+
     def visualize_results(self,plot=True):
         self.result = self.result[:,0:2]
         lineObjects = plt.plot(self.t[1:], self.result)
@@ -52,7 +55,7 @@ class SEIR_model:
         if plot == True:
             plt.show()
 
-class retrieve_data:
+class RetrieveData(object):
 
     def __init__(self,source="JHU",use_api=True):
         self.retrieve_data(source=source,use_api=use_api)
@@ -102,16 +105,34 @@ class retrieve_data:
         df = pd.DataFrame(data)
         self.df = df
 
-    def retrieve_JHU(self):
-        filename = "/Users/nestor/Documents/hackatumCovid2020/modelling/data/"
+    def retrieve_JHU(self, country='Germany'):
+
+        self._dir = Path.cwd().parent.joinpath('data/JHU')
+        base_file_name = 'time_series_covid19_{}_global.csv'
+        file_types = ['confirmed', 'deaths', 'recovered']
+        file_list = [self._dir.joinpath(base_file_name.format(f)) for f in file_types]
+
+        country_filter = lambda df, ctr: df.loc[df['Country/Region'] == ctr]
+
+        raw_data = [pd.read_csv(file) for file in file_list]
+        [I, D, R] = [country_filter(data, country).T for data in raw_data]
+        I.index = pd.to_datetime(I.index, errors='coerce', infer_datetime_format=True)
+
+        data_dict = dict([(type_, df.iloc[4:,0]) for df, type_ in zip([I, D, R], file_types)])
+        self.__setattr__(country, pd.DataFrame(data_dict, columns= file_types))
 
 
-    def get_data(self):
-        return self.df
-
+    def get_data(self, country= None):
+        if country is None:
+            return self.df
+        elif hasattr(self, country):
+            return self.__getattribute__(country)
+        else:
+            raise AttributeError('RertriveData instance does not have {} data present'.format(country))
 
 if __name__ == '__main__':
-
+    data_ret = RetrieveData()
+    '''
     dates_FB = False
     location = "München"
     kreis_nuts = "DE212"
@@ -121,20 +142,18 @@ if __name__ == '__main__':
     else:
         FMT = '%Y-%m-%dT%H:%M:%S.%f'
         date_0 = datetime.strptime("2020-01-01T00:00:00.0", FMT)
-
-
-
-    dataret = retrieve_data(source = "fusionbase",use_api=False)
-    df = dataret.get_data()
-
+    '''
+    data_ret.retrieve_data()
+    df = data_ret.get_data(country= 'Germany')
+    '''
     #dataret = retrieve_data(source = "JHU")
     #df = dataret.get_data()
-
+    
     list(df.columns)
     #overall_cases = df['cases'].sum()
     #max_cases = df.loc[df['cases'].idxmax()]
     #print(max_cases)
-
+    
     #Obtaining time-series times
     if (dates_FB==False):
         dates = df['publication_datetime']
@@ -152,16 +171,14 @@ if __name__ == '__main__':
 
     #Assume no social distance. That means that S=E
     N = (df['population'].iloc[0])
-
-    I = df['cases']
-    R = I * 1/10  # This should be an input data
+    '''
+    N = int(80e6)
+    I = df['confirmed']
+    # R = I * 1/10  # This should be an input data
+    R = df['recovered'] + df['deaths']
     S = N - I - R
     E = S * 0.7  #let's assume that the 70% of the total sussceptible population is exposed
-
-    seir = SEIR_model(N,S,E,I,R,df["Days"],location=location)
+    t = [t_ for t_ in range(len(df.index))]
+    seir = SEIR_model(N,S,E,I,R,t)
     seir.model(rho=1)   #no social distancing
     seir.visualize_results(plot=True)
-
-
-
-
