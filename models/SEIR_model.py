@@ -28,18 +28,32 @@ class SEIR_model:
 
         n_meas = len(t) #number of measurements
         dt = t[1:]-t[0:n_meas-1] #delta t of the time-series
-        print(dt)
+
+        #filter out values with dt eq 0
+        S = S[ np.hstack((True,dt>0)) ]
+        E = E[np.hstack((True, dt > 0))]
+        I = I[np.hstack((True, dt > 0))]
+        R = R[np.hstack((True, dt > 0))]
+        dt = dt[dt > 0]
+        n_meas = len(dt) + 1
+
         #beta
-        beta = (S[0:n_meas-1]-S[1:]) / S[1:]*I[1:]*dt
-        print(beta)
+        A = np.asmatrix(-S[1:]*I[1:],dtype=float).T
+        b = np.asmatrix((S[1:]-S[0:n_meas-1])/dt,dtype=float).T
+        beta = (np.linalg.lstsq(A,b,rcond=None)[0])[0,0]
 
         #alpha
-        alpha = 1/E[1:] * (beta*S[1:]*I[1:]-(E[1:]-E[0:n_meas-1])/dt)
+        A = np.asmatrix(E[1:],dtype=float).T
+        b = np.asmatrix(beta*S[1:]*I[1:]-(E[1:]-E[0:n_meas-1])/dt,dtype=float).T
+        alpha = (np.linalg.lstsq(A, b,rcond=None)[0])[0,0]
 
         #gamma
-        gamma = 1/I[1:]*(alpha*E[1:]-(I[1:]-I[0:n_meas-1])/dt)
+        A = np.asmatrix(I[1:],dtype=float).T
+        b = np.asmatrix(alpha*E[1:]-(I[1:]-I[0:n_meas-1])/dt,dtype=float).T
+        gamma = (np.linalg.lstsq(A, b,rcond=None)[0])[0,0]
 
         self.result = np.stack([beta, alpha, gamma]).T
+        return self.result
 
     def filter_data(self):
         pass
@@ -73,8 +87,6 @@ class RetrieveData(object):
     def retrieve_fusionbase_api(self,dates_FB = False):
         location = "München"
         kreis_nuts = "DE212"
-
-
 
         # url = "https://api.public.fusionbase.io/cases/latest"
         url = "https://api.public.fusionbase.io/cases"
@@ -131,7 +143,7 @@ class RetrieveData(object):
             raise AttributeError('RertriveData instance does not have {} data present'.format(country))
 
 if __name__ == '__main__':
-    data_ret = RetrieveData()
+    data_ret = RetrieveData(source="JHU")
     '''
     dates_FB = False
     location = "München"
@@ -143,7 +155,7 @@ if __name__ == '__main__':
         FMT = '%Y-%m-%dT%H:%M:%S.%f'
         date_0 = datetime.strptime("2020-01-01T00:00:00.0", FMT)
     '''
-    data_ret.retrieve_data()
+    #data_ret.retrieve_data()
     df = data_ret.get_data(country= 'Germany')
     '''
     #dataret = retrieve_data(source = "JHU")
@@ -172,7 +184,7 @@ if __name__ == '__main__':
     #Assume no social distance. That means that S=E
     N = (df['population'].iloc[0])
     '''
-    N = int(80e6)
+    N = 80e6
     I = df['confirmed']
     # R = I * 1/10  # This should be an input data
     R = df['recovered'] + df['deaths']
@@ -180,5 +192,11 @@ if __name__ == '__main__':
     E = S * 0.7  #let's assume that the 70% of the total sussceptible population is exposed
     t = [t_ for t_ in range(len(df.index))]
     seir = SEIR_model(N,S,E,I,R,t)
-    seir.model(rho=1)   #no social distancing
-    seir.visualize_results(plot=True)
+
+    beta, alpha, gamma = seir.model(rho=1)  # no social distancing
+    print("beta = " + str(beta))
+    print("alpha = " + str(alpha))
+    print("gamma = " + str(gamma))
+
+
+    #seir.visualize_results(plot=True)
